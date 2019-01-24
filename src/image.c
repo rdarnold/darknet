@@ -26,6 +26,17 @@
 #define CV_RGB(r, g, b) cvScalar( (b), (g), (r), 0 )
 #endif
 
+// RDA additions
+// We need to do this wonkiness for getting tick count
+#define timespec linux_timespec
+#define timeval linux_timeval
+#define itimerspec linux_itimerspec
+#include <linux/time.h> 
+#undef timespec
+#undef timeval
+#undef itimerspec
+// END RDA additions
+
 extern int check_mistakes;
 int windows = 0;
 
@@ -313,8 +324,35 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr) {
     return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
 
-void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+
+// RDA additions
+void save_to_file(const char *filepath, const char *data)
 {
+    FILE *fp = fopen(filepath, "w");
+    if (fp != NULL)
+    {
+        fputs(data, fp);
+        fclose(fp);
+    }
+}
+
+static uint64_t GetTickCountMs()
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (uint64_t)(ts.tv_nsec / 1000000) + ((uint64_t)ts.tv_sec * 1000ull);
+}
+// END RDA additions
+
+void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output, int ms_taken)
+{
+    // RDA additions
+    char buff[50000];
+    buff[0] = 0;
+    // END RDA additions
+
     static int frame_id = 0;
     frame_id++;
 
@@ -326,18 +364,22 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
     int i;
     for (i = 0; i < selected_detections_num; ++i) {
         const int best_class = selected_detections[i].best_class;
-        printf("%s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
+        //printf("%s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
+        sprintf(buff + strlen(buff), "%s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
         if (ext_output)
-            printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+            //printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+            sprintf(buff + strlen(buff), "\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
                 round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
                 round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
                 round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
         else
-            printf("\n");
+            //printf("\n");
+            sprintf(buff + strlen(buff), "\n");
         int j;
         for (j = 0; j < classes; ++j) {
             if (selected_detections[i].det.prob[j] > thresh && j != best_class) {
-                printf("%s: %.0f%%\n", names[j], selected_detections[i].det.prob[j] * 100);
+                //printf("%s: %.0f%%\n", names[j], selected_detections[i].det.prob[j] * 100);
+                sprintf(buff + strlen(buff), "%s: %.0f%%\n", names[j], selected_detections[i].det.prob[j] * 100);
             }
         }
     }
@@ -435,6 +477,17 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
             }
     }
     free(selected_detections);
+
+    // RDA additions
+    if (buff[0] != 0) {
+        // Let's put a timestamp on it so we know when it was written
+        sprintf(buff + strlen(buff), "Milliseconds: %d\nTimestamp: %d\n", ms_taken, GetTickCountMs());
+        // Now write buff to file
+        save_to_file("detection_data.txt", buff);
+        // And display it
+        printf(buff);
+    }
+    // END RDA additions
 }
 
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)

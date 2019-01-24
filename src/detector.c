@@ -1292,13 +1292,15 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         double time = get_time_point();
         network_predict(net, X);
         //network_predict_image(&net, im); letterbox = 1;
-        printf("%s: Predicted in %lf milli-seconds.\n", input, ((double)get_time_point() - time) / 1000);
+        int ms_taken = ((double)get_time_point() - time) / 1000;
+        printf("%s: Predicted in %d milli-seconds.\n", input, ms_taken);
+        //printf("%s: Predicted in %lf milli-seconds.\n", input, ms_taken);
         //printf("%s: Predicted in %f seconds.\n", input, (what_time_is_it_now()-time));
 
         int nboxes = 0;
         detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
         if (nms) do_nms_sort(dets, nboxes, l.classes, nms);
-        draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output);
+        draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output, ms_taken);
         save_image(im, "predictions");
         if (!dont_show) {
             show_image(im, "predictions");
