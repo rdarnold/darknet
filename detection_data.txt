@@ -1,0 +1,4 @@
+bottle: 72%	(left_x:  122   top_y:   41   width:   44   height:  172)
+bottle: 32%	(left_x:  177   top_y:   55   width:   48   height:  172)
+Milliseconds: 1924
+Timestamp: 5553537
