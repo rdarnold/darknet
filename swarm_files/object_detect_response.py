@@ -44,15 +44,23 @@ import timeit
 # new imports for object detection stuff
 import os.path
 import subprocess
+import socket
+from socket import *
+import time
 # end new imports
 
 #SAFE_ALT = 100
 SAFE_ALT = 10
+SOCK_PORT = 45005
 
 class ObjectDetResponse(ss.Tactic):
 
-    object_found = False
+    obj1_found = False
+    obj2_found = False
     darknet_path = "/home/rrc/Ross/darknet_ab/"
+    snd_sock = False
+    rcv_sock = False
+    last_time = 0
 
     def init_variables(self, params):
         self._id = int(params['id'])
@@ -160,14 +168,30 @@ class ObjectDetResponse(ss.Tactic):
                 if not text: 
                     break
                 if "bottle" in text:
-                    print "********************************************************\n"
-                    print "********************************************************\n"
-                    print "**************** TARGET OBJECT DETECTED ****************\n"
-                    print "********************************************************\n"
-                    print "********************************************************\n"
+                    print "**********************************************************\n"
+                    print "**********************************************************\n"
+                    print "**************** TARGET OBJECT 1 DETECTED ****************\n"
+                    print "**********************************************************\n"
+                    print "**********************************************************\n"
                     # Set some overall boolean to true and then we don't run this anymore
-                    self.object_found = True
+                    self.obj1_found = True
                     f.close()
+
+                    # Now broadcast to other members of the swarm 
+                    self.snd_sock.sendto('obj1 found',('255.255.255.255', SOCK_PORT))
+                    return True
+                if "umbrella" in text:
+                    print "**********************************************************\n"
+                    print "**********************************************************\n"
+                    print "**************** TARGET OBJECT 2 DETECTED ****************\n"
+                    print "**********************************************************\n"
+                    print "**********************************************************\n"
+                    # Set some overall boolean to true and then we don't run this anymore
+                    self.obj2_found = True
+                    f.close()
+
+                    # Now broadcast to other members of the swarm 
+                    self.snd_sock.sendto('obj2 found',('255.255.255.255', SOCK_PORT))
                     return True
             f.close()
         return False
@@ -196,8 +220,8 @@ class ObjectDetResponse(ss.Tactic):
 
         return True
 
-    # This is what we do after the target object has been detected
-    def step_autonomy_detected(self, t, dt):
+    # This is what we do after the target object 1 has been detected
+    def step_autonomy_obj1_detected(self, t, dt):
         self._loc = self._wp_id_list[24]
         self._desired_lat = float(usma_enums.WP_LOC[self._loc][0])
         self._desired_lon = float(usma_enums.WP_LOC[self._loc][1])
@@ -206,6 +230,30 @@ class ObjectDetResponse(ss.Tactic):
         # Go to desired latitude, longitude, and altitude
         self._wp = np.array([self._desired_lat, self._desired_lon, 
                              self._desired_alt])
+        
+        # Just send this once a second
+        elapsed = time.clock() - self.last_time
+        if elapsed > 1:
+            self.last_time = time.clock()
+            self.snd_sock.sendto('obj1 found',('255.255.255.255', SOCK_PORT))
+        return True
+
+    # This is what we do after the target object 2 has been detected
+    def step_autonomy_obj2_detected(self, t, dt):
+        self._loc = self._wp_id_list[2]
+        self._desired_lat = float(usma_enums.WP_LOC[self._loc][0])
+        self._desired_lon = float(usma_enums.WP_LOC[self._loc][1])
+        self._at_wp = False
+        
+        # Go to desired latitude, longitude, and altitude
+        self._wp = np.array([self._desired_lat, self._desired_lon, 
+                             self._desired_alt])
+        
+        # Just send this once a second
+        elapsed = time.clock() - self.last_time
+        if elapsed > 1:
+            self.last_time = time.clock()
+            self.snd_sock.sendto('obj2 found',('255.255.255.255', SOCK_PORT))
         return True
 
     # step_autonomy is basically the "main loop" function called continuously 
@@ -215,6 +263,7 @@ class ObjectDetResponse(ss.Tactic):
         # Probably all the UAVs need to init first before some of this will work.
         if self._first_tick == True:
             self._first_tick = False
+            self.last_time = time.clock()
 
             # Set initial altitude settings
             self._desired_alt = self._last_ap_wp[2]
@@ -231,7 +280,46 @@ class ObjectDetResponse(ss.Tactic):
             try: os.remove(self.darknet_path + "webcamshot.jpg")
             except OSError: pass
 
-        if self.object_found == True:
-            return self.step_autonomy_detected(t, dt)
+            #sock = socket.socket()
+            #sock.connect((ip,port))
+            #sock.send("my request\r")
+            #print sock.recv(256)
+            #sock.close()
+            #Create both sockets
+
+            # Start our connection stuff; I'd like to be doing this on
+            # a separate thread?
+            self.snd_sock = socket(AF_INET, SOCK_DGRAM)
+            self.snd_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            self.snd_sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+            self.rcv_sock = socket(AF_INET, SOCK_DGRAM)
+            self.rcv_sock.bind(('', SOCK_PORT)) # OR bind to our own WiFi IP if we know our octet
+            # rcv_sock.bind(('172.30.102.141',12345))
+            
+            if self.snd_sock != False:
+                print("Send broadcast socket created.")
+            if self.rcv_sock != False:
+                print("Receive broadcast socket created.")
+
+            # Broadcast
+            self.snd_sock.sendto('Initial test',('255.255.255.255', SOCK_PORT))
+
+            # Set receive to non-blocking
+            self.rcv_sock.setblocking(0)
+
+        try:
+            recv_text = self.rcv_sock.recvfrom(1024)
+            print recv_text
+            if "obj1" in recv_text:
+                self.obj1_found = True
+            if "obj2" in recv_text:
+                self.obj2_found = True
+        except Exception:
+            pass
+
+        if self.obj1_found == True:
+            return self.step_autonomy_obj1_detected(t, dt)
+        elif self.obj2_found == True:
+            return self.step_autonomy_obj2_detected(t, dt)
         
         return self.step_autonomy_not_detected(t, dt)
