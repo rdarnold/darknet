@@ -1,0 +1,4 @@
+suitcase: 29%	(left_x:  149   top_y:  204   width:  100   height:   39)
+suitcase: 29%	(left_x:  179   top_y:  207   width:   44   height:   24)
+Milliseconds: 1862
+Timestamp: 8841924

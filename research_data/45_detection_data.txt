@@ -1,0 +1,5 @@
+backpack: 42%	(left_x:  149   top_y:  152   width:   57   height:   78)
+suitcase: 26%
+suitcase: 44%	(left_x:  165   top_y:  163   width:   29   height:   57)
+Milliseconds: 1865
+Timestamp: 8243041

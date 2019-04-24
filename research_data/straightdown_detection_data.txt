@@ -1,0 +1,5 @@
+backpack: 27%	(left_x:  105   top_y:   58   width:  149   height:  142)
+skateboard: 49%	(left_x:  119   top_y:  178   width:   97   height:   55)
+skateboard: 37%	(left_x:  147   top_y:  185   width:   41   height:   37)
+Milliseconds: 1860
+Timestamp: 10037215

@@ -1,0 +1,5 @@
+handbag: 33%	(left_x:  174   top_y:  205   width:   74   height:   40)
+handbag: 34%	(left_x:  193   top_y:  214   width:   29   height:   22)
+backpack: 28%
+Milliseconds: 1862
+Timestamp: 8736065

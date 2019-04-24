@@ -1,0 +1,5 @@
+suitcase: 37%	(left_x:  147   top_y:  197   width:   74   height:   41)
+suitcase: 45%	(left_x:  168   top_y:  205   width:   31   height:   28)
+handbag: 37%
+Milliseconds: 1877
+Timestamp: 8606322
